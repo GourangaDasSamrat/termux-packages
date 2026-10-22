@@ -1,6 +1,6 @@
 --- a/scripts/build/config.ts
 +++ b/scripts/build/config.ts
-@@ -1004,7 +1004,7 @@
+@@ -1024,7 +1024,7 @@
    // emitRust() reports that.
    const clangMajor = majorOf(toolchain.clangVersion);
    const rustLlvmMajor = majorOf(toolchain.rustLlvmVersion);
@@ -9,14 +9,3 @@
      throw new BuildError(
        `clang is LLVM ${toolchain.clangVersion} and rustc's LLVM is ${toolchain.rustLlvmVersion}; they have to be the same major version`,
        {
---- a/scripts/build/flags.ts
-+++ b/scripts/build/flags.ts
-@@ -1512,7 +1512,7 @@
-  * where `lto` is on, by itself where it is off. ASan builds link machine code.
-  */
- export function rustLtoInLink(c: Config): boolean {
--  return c.release && !c.asan;
-+  return c.release && !c.asan && c.abi !== "android";
- }
- 
- /** The link optimises bitcode: the C/C++'s (`lto`), the Rust crates', or both. */
