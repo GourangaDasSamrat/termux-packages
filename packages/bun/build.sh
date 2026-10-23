@@ -9,6 +9,55 @@ TERMUX_PKG_EXCLUDED_ARCHES="arm, i686"
 TERMUX_PKG_BUILD_IN_SRC=true
 TERMUX_PKG_AUTO_UPDATE=true
 
+termux_pkg_auto_update() {
+	local TERMUX_SETUP_BUN="${TERMUX_SCRIPTDIR}/scripts/build/setup/termux_setup_bun.sh"
+	local latest_tag latest_version
+	latest_tag="$(termux_github_api_get_tag)"
+	latest_version="${latest_tag#bun-v}"
+
+	if [[ "${latest_version}" == "${TERMUX_PKG_VERSION}" ]]; then
+		echo "INFO: No update needed. Already at version '${TERMUX_PKG_VERSION}'."
+		return
+	fi
+
+	# Get the SHA256 checksum from the release artifacts
+	local TERMUX_BUN_SHA256
+	TERMUX_BUN_SHA256="$(
+		curl -sL \
+			-H "X-GitHub-Api-Version: 2026-03-10" \
+			-H "Accept: application/vnd.github+json" \
+			-A "Termux update checker 1.1 (github.com/termux/termux-packages)" \
+			"https://api.github.com/repos/oven-sh/bun/releases/tags/${latest_tag}" \
+		| jq -r '.[].[]? | select(.name? == "bun-linux-x64.zip") | .digest | ltrimstr("sha256:")'
+	)"
+
+	if [[ ! "${TERMUX_BUN_SHA256:-}" =~ [0-9a-f]{64} ]]; then
+		printf '%s\n' \
+			"Could not fetch valid SHA256 sum from upstream release artifacts." \
+			"Got: '${TERMUX_BUN_SHA256:-}'" >&2
+		return
+	fi
+
+	printf '%s\n' \
+		"" \
+		"Toolchain:" \
+		"bun-linux-x64.zip  $TERMUX_BUN_SHA256" \
+		""
+
+	if [[ "${BUILD_PACKAGES}" == "false" ]]; then
+		echo "INFO: package needs to be updated to ${latest_version}."
+		return
+	fi
+
+	# Update the version and checksum in termux_setup_bun
+	sed \
+		-e "s|local TERMUX_BUN_VERSION=.*|local TERMUX_BUN_VERSION=\"\${TERMUX_BUN_VERSION:-${latest_version}}\"|" \
+		-e "s|local TERMUX_BUN_SHA256=.*|local TERMUX_BUN_SHA256=\"${TERMUX_BUN_SHA256}\"|" \
+		-i "${TERMUX_SETUP_BUN}"
+
+	termux_pkg_upgrade_version "${latest_version}"
+}
+
 termux_step_make() {
 	termux_setup_cmake
 	termux_setup_ninja
