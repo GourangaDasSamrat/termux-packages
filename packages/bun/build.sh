@@ -126,6 +126,11 @@ termux_step_make() {
 		_bun_arch="x64"
 	fi
 
+	# WebKit prebuilt archives were built with NDK r27c (offset 0xE8 for has_val).
+	# NDK r30 packs has_val into tail padding at 0xE2 unless __put_flag_in_tail is false.
+	find "$NDK" -type f -path "*/c++/v1/__expected/expected.h" -exec sed -i \
+		's/__fits_in_tail_padding<__union_t, bool>/false/g' {} +
+
 	rustup toolchain install
 	bun run build:release \
 		--abi=android \
